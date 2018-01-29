@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title></title>
+		<link rel="stylesheet" type="text/css" href="css/base.css">
+    	<link rel="stylesheet" type="text/css" href="css/index.css">
+		<script src="src/vue.js"></script>
+	</head>
+	<body>
+		<section class="todoapp">
+			<div>
+				<header class="header" >
+				    <h1>todos</h1>
+				    <input 
+				    	class="new-todo" 
+				    	placeholder="请输入内容" 
+				    	v-model="todo"
+				    	@keydown.13="addTodo"
+				    />
+				</header>
+				<section class="main" v-show="list.length">
+				    <input class="toggle-all" type="checkbox" v-model="isAllSelected" />
+				    <ul class="todo-list">
+				        <li :class="{completed: item.selected,editing:edit === item}" v-for="item,index in filterList">
+				            <div class="view">
+				                <input class="toggle" type="checkbox" v-model="item.selected">
+				                <label @dblclick="editTodo(item)">{{item.title}}</label>
+				                <button class="destroy" @click="deleteTodo(index)"></button>
+				            </div>
+				            <input 
+				            	class="edit" 
+				            	v-model="item.title" 
+				            	@blur="editDone(item)"
+				            	@keydown.13="editDone(item)"
+				            	@keydown.esc="cancelTodo(item)"
+				            />
+				        </li>
+				    </ul>
+				</section>
+	            <footer class="footer" v-show="list.length">
+		            <span class="todo-count">
+		            	<strong>{{unSelectedNum}}</strong>
+		            	<span>条未选中</span>
+		            </span>
+		             <ul class="filters">
+		            	<li><a href="#/all" :class="{selected:filterHash==='all'}">全部</a>
+		            	</li> <li><a href="#/active" :class="{selected:filterHash==='active'}">未选中</a></li> 
+		            	<li><a href="#/completed" :class="{selected:filterHash==='completed'}">选中</a></li>
+		            </ul>
+	            </footer>
+			</div>
+
+		</section>
+		
+		<script>
+			
+			let data = localStorage.getItem("todos");//获取localStorage里todos的值
+			
+			if(data){//如果存在就把data转换为一个数组
+				
+				data = JSON.parse(data);
+				
+			}else{//否则初始为一个空数组
+				
+				data = [];
+			}
+			
+			
+	        let vm = new Vue({
+				
+				el:".todoapp",//Vue可以管理的元素
+				
+				data:{
+					
+					list:data,//通过list存放数据,初始值为data
+					
+					todo:'',//要添加进来的数据
+					
+					edit:'',//当前正在编辑的数据
+					
+					originTitle:'',//原来的题目,为了编辑撤销保存一下
+					
+					filterHash:"all"
+					
+				},
+				
+				watch:{
+					
+					list:{
+						
+						deep:true,//深度监视
+						
+						handler(){//只要list发生变化，就更新localStorage的内容
+							
+							localStorage.setItem("todos",JSON.stringify(this.list));
+						}
+					}
+	
+				},
+				
+				computed:{//计算样式
+					
+					unSelItems(){//没被选中的新数组
+						
+						return this.list.filter(function(item){
+							
+							return !item.selected;
+						})
+						
+					},
+					
+					selItems(){//被选中的新数组
+						
+						return this.list.filter(function(item){
+							
+							return item.selected;
+						})
+						
+					},
+					
+					isAllSelected:{
+						
+						get(){//是否全被选中，返回布尔值
+							
+							return this.selItems.length==this.list.length;
+						},
+						
+						set(newValue){//根据全选框的状态设置所有单选框的状态
+							
+							this.list.forEach(function(item){
+								
+								item.selected = newValue;
+							})
+							
+						}
+	
+					},
+					
+					unSelectedNum(){//没被选中的数量
+						
+						return this.list.length - this.selItems.length;
+					},
+					
+					filterList(){
+						
+						if(this.filterHash =="all"){
+							
+							return this.list;
+							
+						}else if(this.filterHash =="active"){
+							
+							
+							return this.unSelItems;
+							
+						}else if(this.filterHash =="completed"){
+							
+							return this.selItems;
+							
+						}else{
+							
+							return this.list;
+						}
+	
+					}
+	
+				},
+				
+				methods:{
+					
+					addTodo(ev){//添加条目
+						
+						this.list.push({//往数组里push一个对象
+							
+							id:Math.random(),//分配随机id
+							
+							title:this.todo,//双向绑定的value值
+							
+							selected:false//新加一个条目初始是不被选中的状态
+							
+						})
+						
+						this.todo ="";//添加过后，输入框清零
+					},
+					
+					
+					deleteTodo(index){//删除条目的下标的下标传进来
+						
+						this.list.splice(index,1)//处理数据
+					},
+					
+					editTodo(item){//编辑条目的
+						
+						this.edit = item;//edit就指向当前编辑的条目
+						
+						this.originTitle = item.title;//保存一下编辑前的title
+					},
+					
+					editDone(item){//编辑完毕执行函数
+						
+						if(item.title ===""){//如果编辑后结果为空就默认将这条删除
+							
+							let i = this.list.indexOf(item);
+							
+							this.list.splice(i,1)
+						}
+						
+						this.edit = "";//清空当前的纸箱,以便变换class
+						
+					},
+					
+					cancelTodo(item){//撤销编辑
+						
+						item.title = this.originTitle;//把原来保存的标题付给现在编辑的条目
+						
+						this.originTitle = "";//清空originTitle的值
+						
+						this.edit = "";//清空edit,控制class,以便展示和隐藏
+					}
+				}
+				
+			})
+			
+			window.onhashchange = function(){
+				
+				let hash = window.location.hash;
+				
+				if(hash){
+					
+					console.log(vm)
+					
+					vm.filterHash = hash.slice(2)
+				}
+	
+			}
+			
+			window.onhashchange();
+			
+		</script>
+	</body>
+</html>
